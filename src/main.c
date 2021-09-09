@@ -54,21 +54,21 @@ extern const u32 title_00000001_bin_size;
 static void wupiPrintln(s32 line, const char* str)
 {
     /* put line twice for double buffer */
-	OSScreenPutFontEx(0, 0, line, str);
-	OSScreenPutFontEx(1, 0, line, str);
-	OSScreenFlipBuffersEx(0);
-	OSScreenFlipBuffersEx(1);
+    OSScreenPutFontEx(0, 0, line, str);
+    OSScreenPutFontEx(1, 0, line, str);
+    OSScreenFlipBuffersEx(0);
+    OSScreenFlipBuffersEx(1);
 
     OSScreenPutFontEx(0, 0, line, str);
-	OSScreenPutFontEx(1, 0, line, str);
-	OSScreenFlipBuffersEx(0);
-	OSScreenFlipBuffersEx(1);
+    OSScreenPutFontEx(1, 0, line, str);
+    OSScreenFlipBuffersEx(0);
+    OSScreenFlipBuffersEx(1);
 }
 
 
 void WUPI_printTop (void)
 {
-    wupiPrintln(0, "Compat Title Installer v1.0");
+    wupiPrintln(0, "Compat Title Installer v1.1");
     wupiPrintln(1, "COPYRIGHT (c) 2021 TheLordScruffy");
 }
 
