@@ -75,7 +75,7 @@ CINS_Install (
     s32 ret, stage, i;
     FILE* fd = NULL;
     char path[CINS_PATH_LEN], pathd[CINS_PATH_LEN];
-    char titlePath[CINS_PATH_LEN], ticketPath[CINS_PATH_LEN];
+    char titlePath[CINS_PATH_LEN], ticketPath[CINS_PATH_LEN], ticketFolder[CINS_PATH_LEN];
     
     CINS_Log("Starting install\n");
 
@@ -89,6 +89,8 @@ CINS_Install (
              "fs:/title/%08x", CINS_ID_HI);
     snprintf(ticketPath, CINS_PATH_LEN,
              "fs:/ticket/%08x/%08x.tik", CINS_ID_HI, CINS_ID_LO);
+    snprintf(ticketFolder, CINS_PATH_LEN,
+             "fs:/ticket/%08x", CINS_ID_HI);
     /* Init stage is not needed anymore. */
 
     CINS_Log("Writing ticket...\n");
@@ -96,11 +98,19 @@ CINS_Install (
     {
         unlink(ticketPath);
 
-        CINS_TRY(fd = fopen(ticketPath, "wb"));
-        CINS_TRY(fwrite(ticket, ticket_size, 1, fd) == 1);
+        ret = mkdir(ticketFolder, -1);
+        if (ret == 0 || errno == FS_STATUS_EXISTS)
+        {
+            CINS_TRY(fd = fopen(ticketPath, "wb"));
+            CINS_TRY(fwrite(ticket, ticket_size, 1, fd) == 1);
 
-        fclose(fd);
-        fd = NULL;
+            fclose(fd);
+            fd = NULL;
+
+            ret = 0;
+        }
+
+        CINS_TRY (!ret); // ret == 0
     }
 
     CINS_Log("Creating title directory...\n");
