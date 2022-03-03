@@ -5,15 +5,13 @@ simply installs the Homebrew Channel.
 
 ## Building
 
-You need devkitPPC and devkitARM installed, and the environment variables set
+You need devkitPPC and WUT installed, and the environment variables set
 correctly. You will need the following libraries:
 
-* [dynamic_libs](https://github.com/Maschell/dynamic_libs)
-* [libutils](https://github.com/Maschell/libutils)
-* [libiosuhax](https://github.com/dimok789/libiosuhax)
+* [libiosuhax](https://github.com/wiiu-env/libiosuhax)
 
 If everything is installed, run 'make' and the output will be available as
-'compat-installer.elf' in the source folder.
+'compat-installer.rpx' in the source folder.
 
 ## Credits
 

@@ -32,7 +32,6 @@ void WUPI_putstr(const char*);
 #   define CINS_Log(...) do {                           \
         char _wupi_print_str[256];                      \
         snprintf(_wupi_print_str, 255, __VA_ARGS__);    \
-        WUPI_putstr(_wupi_print_str);                   \
     } while (0)
 #else
 #   define CINS_Log(...)
@@ -52,7 +51,7 @@ void WUPI_putstr(const char*);
 #define FS_STATUS_EXISTS    -0x30016
 #define FS_STATUS_NOT_FOUND -0x30017
 
-#define CINS_PATH_LEN       (sizeof("fs:") + 63)
+#define CINS_PATH_LEN       (sizeof("slccmpt:") + 63)
 
 #define CINS_ID_HI ((u32)(CINS_TITLEID >> 32))
 #define CINS_ID_LO ((u32)(CINS_TITLEID & 0xFFFFFFFF))
@@ -84,13 +83,13 @@ CINS_Install (
      * other directories. The wupserver doesn't already support renaming files,
      * and my attempt to add it failed so I gave up. */
     snprintf(titlePath, CINS_PATH_LEN,
-             "fs:/title/%08x/%08x", CINS_ID_HI, CINS_ID_LO);
+             "slccmpt:/title/%08x/%08x", CINS_ID_HI, CINS_ID_LO);
     snprintf(path, CINS_PATH_LEN,
-             "fs:/title/%08x", CINS_ID_HI);
+             "slccmpt:/title/%08x", CINS_ID_HI);
     snprintf(ticketPath, CINS_PATH_LEN,
-             "fs:/ticket/%08x/%08x.tik", CINS_ID_HI, CINS_ID_LO);
+             "slccmpt:/ticket/%08x/%08x.tik", CINS_ID_HI, CINS_ID_LO);
     snprintf(ticketFolder, CINS_PATH_LEN,
-             "fs:/ticket/%08x", CINS_ID_HI);
+             "slccmpt:/ticket/%08x", CINS_ID_HI);
     /* Init stage is not needed anymore. */
 
     CINS_Log("Writing ticket...\n");
@@ -130,7 +129,7 @@ CINS_Install (
                     "Title directory already exists, deleting content...\n"
                 );
                 snprintf(path, CINS_PATH_LEN,
-                         "fs:/title/%08x/%08x/content",
+                         "slccmpt:/title/%08x/%08x/content",
                          CINS_ID_HI, CINS_ID_LO);
                 if (unlink(path) == 0 || errno == FS_STATUS_NOT_FOUND)
                     ret = 0;
@@ -175,7 +174,7 @@ CINS_Install (
         {
             //CINS_Log("Writing content %08x.app\n", i);
             snprintf(path, CINS_PATH_LEN,
-                     "fs:/title/%08x/%08x/content/%08x.app",
+                     "slccmpt:/title/%08x/%08x/content/%08x.app",
                      CINS_ID_HI, CINS_ID_LO, i);
 
             CINS_TRY (fd = fopen(path, "wb"));
@@ -198,90 +197,6 @@ error:
          * there is no 'half installed' title lurking in the filesystem. */
         unlink(titlePath);
         unlink(ticketPath);
-    }
-
-    if (ret < -0x99999)
-        ret = -0x800;
-    if (ret > 0)
-        ret = 0;
-    return ret < 0 ? ret - stage * 0x100000 : 0;
-}
-
-
-/* This doesn't seem to work */
-s32
-CINS_Uninstall (void)
-{
-    char titlePath[CINS_PATH_LEN], ticketPath[CINS_PATH_LEN];
-    s32 ret, stage;
-    //u32 cnt;
-
-    CINS_Log("Begin uninstall...\n");
-    snprintf(titlePath, CINS_PATH_LEN,
-             "fs:/title/%08X/%08X",
-             CINS_ID_HI, CINS_ID_LO);
-    snprintf(ticketPath, CINS_PATH_LEN,
-             "fs:/ticket/%08X/%08X.tik",
-             CINS_ID_HI, CINS_ID_LO);
-
-    stage = CINS_STAGE_DELETE_TIK;
-    if (unlink(ticketPath) != 0 && errno != FS_STATUS_NOT_FOUND) {
-        /* Deleting the ticket is not 100% necessary. */
-        CINS_Log("Failed to delete ticket\n");
-    }
-
-    /* Set ret to less than zero so it deletes the full directory if this is not
-     * true. */
-    ret = -1;
-#if 0
-    if (!deleteSaveData)
-    {
-        char path[CINS_PATH_LEN];
-        stage = CINS_STAGE_DELETE_KEEP;
-        //CINS_TRY(ES_DeleteTitleContent(CINS_TITLEID));
-
-        snprintf(path, CINS_PATH_LEN,
-                 "fs:/title/%08X/%08X/data",
-                 CINS_ID_HI, CINS_ID_LO);
-        ret = ISFS_ReadDir(path, NULL, &cnt);
-        /* ret < 0 would normally cause a failure in the Wii Menu channel
-         * uninstaller, but we're smarter than that. */
-        if (ret >= 0 && cnt == 0)
-            ret = -1;
-        else CINS_Log(
-            "The /data directory is not empty, skipping full uninstall.\n");
-    }
-#endif
-//for no compilation warning
-//error:
-    if (ret < 0)
-    {
-        /* Delete the entire title directory on an error. */
-        ret = unlink(titlePath);
-        if (ret < 0) {
-            if (ret != FS_STATUS_NOT_FOUND)
-                CINS_Log("Failed to delete title\n");
-            else
-                ret = IOS_SUCCESS;
-        }
-#if 0
-        if (ret >= IOS_SUCCESS)
-        {
-            /* Delete title top directory if there are no other titles.
-             * (untested) */
-            u32 num;
-
-            snprintf(titlePath, 64, "fs:/title/%08X",
-                     CINS_ID_HI);
-            ret = ISFS_ReadDir(titlePath, NULL, &num);
-
-            if (ret >= IOS_SUCCESS && num == 0 &&
-                ISFS_Delete(titlePath) < IOS_SUCCESS)
-                CINS_Log("Failed to delete title top directory\n");
-
-            ret = IOS_SUCCESS;
-        }
-#endif
     }
 
     if (ret < -0x99999)

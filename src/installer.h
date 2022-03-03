@@ -48,7 +48,6 @@ s32 CINS_Install(
     const void* tmd, u32 tmd_size,
     CINS_Content* contents, u16 numContents
 );
-s32 CINS_Uninstall();
 
 #ifdef __cplusplus
 }
