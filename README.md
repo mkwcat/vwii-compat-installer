@@ -13,12 +13,16 @@ correctly. You will need the following libraries:
 * [libiosuhax](https://github.com/dimok789/libiosuhax)
 
 If everything is installed, run 'make' and the output will be available as
-'compat-installer.elf' in the source folder.
+'compat-installer.elf'.
 
 ## Credits
 
 * Dimok, smealum, others for iosuhax and Mocha CFW.
 * FIX94, this repo is largely based off of wuphax.
+
+Portions of Mocha CFW are included in binary form. The source code of the
+specific version used here is from
+[FIX94/wuphax](https://github.com/fix94/wuphax).
 
 ## License
 

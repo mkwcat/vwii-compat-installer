@@ -16,21 +16,20 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include <gctypes.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdbool.h>
-#include <unistd.h>
+#include "installer.h"
+#include "ios_exploit.h"
 #include <dynamic_libs/os_functions.h>
 #include <dynamic_libs/sys_functions.h>
 #include <dynamic_libs/vpad_functions.h>
+#include <errno.h>
+#include <gctypes.h>
 #include <iosuhax.h>
 #include <iosuhax_devoptab.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 #include <system/memory.h>
-#include "ios_exploit.h"
-#include "installer.h"
-#include "../wupserver/wupserver_bin.h"
-#include <errno.h>
+#include <unistd.h>
 
 void WUPI_printTop();
 void WUPI_putstr(const char* str);
@@ -50,6 +49,8 @@ extern const u32 title_00000000_bin_size;
 extern const u8 title_00000001_bin[];
 extern const u32 title_00000001_bin_size;
 
+extern const u8 wupserver_bin[];
+extern const u32 wupserver_bin_size;
 
 static void wupiPrintln(s32 line, const char* str)
 {
@@ -65,30 +66,29 @@ static void wupiPrintln(s32 line, const char* str)
     OSScreenFlipBuffersEx(1);
 }
 
-
-void WUPI_printTop (void)
+void WUPI_printTop(void)
 {
     wupiPrintln(0, "Compat Title Installer v1.1");
     wupiPrintln(1, "COPYRIGHT (c) 2021 TheLordScruffy");
 }
 
 /* I don't care enough to implement a va arg function */
-#define WUPI_printf(...) \
-    do { \
-        char _wupi_print_str[256]; \
-        snprintf(_wupi_print_str, 255, __VA_ARGS__); \
-        WUPI_putstr(_wupi_print_str); \
+#define WUPI_printf(...)                                                       \
+    do                                                                         \
+    {                                                                          \
+        char _wupi_print_str[256];                                             \
+        snprintf(_wupi_print_str, 255, __VA_ARGS__);                           \
+        WUPI_putstr(_wupi_print_str);                                          \
     } while (0)
 
-
-void WUPI_putstr (const char* str)
+void WUPI_putstr(const char* str)
 {
     wupiPrintln(wupiLine++, str);
 }
 
-void WUPI_resetScreen (void)
+void WUPI_resetScreen(void)
 {
-    memset((void*) screen_buffer, 0, screen_size);
+    memset((void*)screen_buffer, 0, screen_size);
     wupiLine = 4;
 
     WUPI_printTop();
@@ -115,8 +115,8 @@ void WUPI_waitHome()
     WUPI_putstr("Press HOME to exit.");
     while (1)
     {
-        if (((ret = WUPI_pollVPAD(&vpad)) == 0)
-            && ((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_HOME))
+        if (((ret = WUPI_pollVPAD(&vpad)) == 0) &&
+            ((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_HOME))
         {
             OSScreenClearBufferEx(0, 0);
             OSScreenClearBufferEx(1, 0);
@@ -131,19 +131,20 @@ s32 WUPI_setupInstall(void)
 {
     if (IOSUHAX_Open(NULL) >= 0)
         return 0;
-    else if (MCPHookOpen() >= 0) {
+    else if (MCPHookOpen() >= 0)
+    {
         mcp = true;
         return 0;
     }
-    
+
     WUPI_putstr("Doing IOS exploit...");
-	*(vu32*) 0xF5E70000 = wupserver_bin_len;
-	memcpy((void*) 0xF5E70020, &wupserver_bin, wupserver_bin_len);
-	DCStoreRange((void*) 0xF5E70000, wupserver_bin_len + 0x40);
+    *(vu32*)0xF5E70000 = wupserver_bin_size;
+    memcpy((void*)0xF5E70020, &wupserver_bin, wupserver_bin_size);
+    DCStoreRange((void*)0xF5E70000, wupserver_bin_size + 0x40);
     IOSUExploit();
     WUPI_putstr("Done!");
 
-	if(MCPHookOpen() < 0)
+    if (MCPHookOpen() < 0)
         return -1;
 
     mcp = true;
@@ -159,12 +160,12 @@ int entry(void)
     bool mcp = false, mounted = false, exploit = false;
 
     InitOSFunctionPointers();
-	InitSysFunctionPointers();
-	InitVPadFunctionPointers();
+    InitSysFunctionPointers();
+    InitVPadFunctionPointers();
     memoryInitialize();
 
     /* Initialize Gamepad */
-	VPADInit();
+    VPADInit();
 
     /* Initialize screen */
     OSScreenInit();
@@ -180,10 +181,8 @@ int entry(void)
     OSScreenClearBufferEx(1, 0);
 
     WUPI_resetScreen();
-    WUPI_putstr(
-        "Press A to install the Homebrew Channel to the Wii Menu.");
-    WUPI_putstr(
-        "Press HOME to exit.");
+    WUPI_putstr("Press A to install the Homebrew Channel to the Wii Menu.");
+    WUPI_putstr("Press HOME to exit.");
 
     while (1)
     {
@@ -191,7 +190,8 @@ int entry(void)
         {
             if ((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_A)
                 break;
-            else if ((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_HOME) {
+            else if ((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_HOME)
+            {
                 OSScreenClearBufferEx(0, 0);
                 OSScreenClearBufferEx(1, 0);
                 goto exit;
@@ -207,7 +207,8 @@ int entry(void)
 
     /* We should only end up here if the A button was pressed. */
     WUPI_resetScreen();
-    if (WUPI_setupInstall() < 0) {
+    if (WUPI_setupInstall() < 0)
+    {
         WUPI_putstr("Error: IOS exploit failed.");
         WUPI_waitHome();
         goto exit;
@@ -215,14 +216,16 @@ int entry(void)
     exploit = true;
 
     /* Setup IOSUHAX */
-    if ((fsaFd = IOSUHAX_FSA_Open()) < 0) {
+    if ((fsaFd = IOSUHAX_FSA_Open()) < 0)
+    {
         WUPI_putstr("Error: FSA failed to open.");
         WUPI_waitHome();
         goto exit;
     }
 
     if ((ret = mount_fs("fs", fsaFd, "/dev/slccmpt01",
-                                     "/vol/storage_slccmpt01")) < 0) {
+                        "/vol/storage_slccmpt01")) < 0)
+    {
         WUPI_putstr("Error: Failed to mount FS.\n");
         WUPI_waitHome();
         goto exit;
@@ -230,13 +233,13 @@ int entry(void)
     mounted = true;
 
     WUPI_putstr("Installing the Homebrew Channel...\n");
-    contents[0].data = (const void*) title_00000000_bin;
+    contents[0].data = (const void*)title_00000000_bin;
     contents[0].length = title_00000000_bin_size;
-    contents[1].data = (const void*) title_00000001_bin;
+    contents[1].data = (const void*)title_00000001_bin;
     contents[1].length = title_00000001_bin_size;
-    ret = CINS_Install((const void*) title_cetk_bin, title_cetk_bin_size,
-                       (const void*) title_tmd_bin, title_tmd_bin_size,
-                       contents, 2);
+    ret = CINS_Install((const void*)title_cetk_bin, title_cetk_bin_size,
+                       (const void*)title_tmd_bin, title_tmd_bin_size, contents,
+                       2);
     if (ret < 0)
         WUPI_printf("Install failed. Error Code: %06X\n", -ret);
     WUPI_waitHome();
@@ -248,12 +251,13 @@ exit:
         IOSUHAX_FSA_Close(fsaFd);
     ret = 0;
 
-    if (exploit) {
+    if (exploit)
+    {
         if (mcp)
             MCPHookClose();
         else
             IOSUHAX_Close();
-	    /* Reload IOS on exit */
+        /* Reload IOS on exit */
         OSForceFullRelaunch();
         SYSLaunchMenu();
         ret = -3;
