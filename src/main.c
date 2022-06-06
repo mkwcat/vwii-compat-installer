@@ -18,52 +18,61 @@
 
 #include "installer.h"
 #include "ios_exploit.h"
-#include <dynamic_libs/os_functions.h>
-#include <dynamic_libs/sys_functions.h>
-#include <dynamic_libs/vpad_functions.h>
+#include <coreinit/cache.h>
+#include <coreinit/debug.h>
+#include <coreinit/ios.h>
+#include <coreinit/mcp.h>
+#include <coreinit/screen.h>
+#include <coreinit/thread.h>
 #include <errno.h>
-#include <gctypes.h>
 #include <iosuhax.h>
 #include <iosuhax_devoptab.h>
+#include <malloc.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <system/memory.h>
 #include <unistd.h>
+#include <vpad/input.h>
+#include <whb/proc.h>
 
 void WUPI_printTop();
 void WUPI_putstr(const char* str);
 void WUPI_resetScreen();
 
-s32 wupiLine;
-u8* screen_buffer;
-u32 screen_size;
+int32_t wupiLine;
+uint8_t* screen_buffer;
+uint32_t screen_size;
 
 /* Title data */
-extern const u8 title_cetk_bin[];
-extern const u32 title_cetk_bin_size;
-extern const u8 title_tmd_bin[];
-extern const u32 title_tmd_bin_size;
-extern const u8 title_00000000_bin[];
-extern const u32 title_00000000_bin_size;
-extern const u8 title_00000001_bin[];
-extern const u32 title_00000001_bin_size;
+extern const uint8_t title_cetk_bin[];
+extern const uint32_t title_cetk_bin_size;
+extern const uint8_t title_tmd_bin[];
+extern const uint32_t title_tmd_bin_size;
+extern const uint8_t title_00000000_bin[];
+extern const uint32_t title_00000000_bin_size;
+extern const uint8_t title_00000001_bin[];
+extern const uint32_t title_00000001_bin_size;
 
-extern const u8 wupserver_bin[];
-extern const u32 wupserver_bin_size;
+extern const uint8_t wupserver_bin[];
+extern const uint32_t wupserver_bin_size;
 
-static void wupiPrintln(s32 line, const char* str)
+bool mounted = false, exploit = false;
+CINS_Content contents[2];
+int32_t ret, fsaFd = -1;
+
+static void wupiPrintln(int32_t line, const char* str)
 {
     /* put line twice for double buffer */
-    OSScreenPutFontEx(0, 0, line, str);
-    OSScreenPutFontEx(1, 0, line, str);
-    OSScreenFlipBuffersEx(0);
-    OSScreenFlipBuffersEx(1);
+    OSScreenPutFontEx(SCREEN_TV, 0, line, str);
+    OSScreenPutFontEx(SCREEN_DRC, 0, line, str);
+    OSScreenFlipBuffersEx(SCREEN_TV);
+    OSScreenFlipBuffersEx(SCREEN_DRC);
 
-    OSScreenPutFontEx(0, 0, line, str);
-    OSScreenPutFontEx(1, 0, line, str);
-    OSScreenFlipBuffersEx(0);
-    OSScreenFlipBuffersEx(1);
+    OSScreenPutFontEx(SCREEN_TV, 0, line, str);
+    OSScreenPutFontEx(SCREEN_DRC, 0, line, str);
+    OSScreenFlipBuffersEx(SCREEN_TV);
+    OSScreenFlipBuffersEx(SCREEN_DRC);
 }
 
 void WUPI_printTop(void)
@@ -94,13 +103,13 @@ void WUPI_resetScreen(void)
     WUPI_printTop();
 }
 
-s32 WUPI_pollVPAD(VPADData* button)
+int32_t WUPI_pollVPAD(VPADStatus* button)
 {
-    s32 status;
+    int32_t status;
     while (1)
     {
         VPADRead(0, button, 1, &status);
-        if (status == 0 && (button->btns_d | button->btns_h))
+        if (status == 0 && button->trigger)
             break;
         usleep(50000);
     }
@@ -109,25 +118,15 @@ s32 WUPI_pollVPAD(VPADData* button)
 
 void WUPI_waitHome()
 {
-    s32 ret;
-    VPADData vpad;
-
     WUPI_putstr("Press HOME to exit.");
-    while (1)
-    {
-        if (((ret = WUPI_pollVPAD(&vpad)) == 0) &&
-            ((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_HOME))
-        {
-            OSScreenClearBufferEx(0, 0);
-            OSScreenClearBufferEx(1, 0);
-            return;
-        }
-    }
+    while(WHBProcIsRunning())
+        continue;
+    return;
 }
 
 static bool mcp = false;
 
-s32 WUPI_setupInstall(void)
+int32_t WUPI_setupInstall(void)
 {
     if (IOSUHAX_Open(NULL) >= 0)
         return 0;
@@ -138,7 +137,7 @@ s32 WUPI_setupInstall(void)
     }
 
     WUPI_putstr("Doing IOS exploit...");
-    *(vu32*)0xF5E70000 = wupserver_bin_size;
+    *(volatile unsigned int*)0xF5E70000 = wupserver_bin_size;
     memcpy((void*)0xF5E70020, &wupserver_bin, wupserver_bin_size);
     DCStoreRange((void*)0xF5E70000, wupserver_bin_size + 0x40);
     IOSUExploit();
@@ -151,67 +150,14 @@ s32 WUPI_setupInstall(void)
     return 0;
 }
 
-int entry(void)
-{
-    s32 ret, fsaFd = -1;
-    s32 tv_screen_size, drc_screen_size;
-    CINS_Content contents[2];
-    VPADData vpad;
-    bool mcp = false, mounted = false, exploit = false;
-
-    InitOSFunctionPointers();
-    InitSysFunctionPointers();
-    InitVPadFunctionPointers();
-    memoryInitialize();
-
-    /* Initialize Gamepad */
-    VPADInit();
-
-    /* Initialize screen */
-    OSScreenInit();
-    tv_screen_size = OSScreenGetBufferSizeEx(0);
-    drc_screen_size = OSScreenGetBufferSizeEx(1);
-    screen_size = tv_screen_size + drc_screen_size;
-    screen_buffer = MEMBucket_alloc(screen_size, 0x100);
-    OSScreenSetBufferEx(0, screen_buffer); /* TV */
-    OSScreenSetBufferEx(1, screen_buffer + tv_screen_size); /* DRC */
-    OSScreenEnableEx(0, 1);
-    OSScreenEnableEx(1, 1);
-    OSScreenClearBufferEx(0, 0);
-    OSScreenClearBufferEx(1, 0);
-
-    WUPI_resetScreen();
-    WUPI_putstr("Press A to install the Homebrew Channel to the Wii Menu.");
-    WUPI_putstr("Press HOME to exit.");
-
-    while (1)
-    {
-        if ((ret = WUPI_pollVPAD(&vpad)) == 0)
-        {
-            if ((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_A)
-                break;
-            else if ((vpad.btns_d | vpad.btns_h) & VPAD_BUTTON_HOME)
-            {
-                OSScreenClearBufferEx(0, 0);
-                OSScreenClearBufferEx(1, 0);
-                goto exit;
-            }
-        }
-        else
-        {
-            WUPI_resetScreen();
-            WUPI_printf("Error: VPAD Read failed (%d).", ret);
-            goto exit;
-        }
-    }
-
+void WUPI_install() {
     /* We should only end up here if the A button was pressed. */
     WUPI_resetScreen();
     if (WUPI_setupInstall() < 0)
     {
         WUPI_putstr("Error: IOS exploit failed.");
         WUPI_waitHome();
-        goto exit;
+        return;
     }
     exploit = true;
 
@@ -220,15 +166,15 @@ int entry(void)
     {
         WUPI_putstr("Error: FSA failed to open.");
         WUPI_waitHome();
-        goto exit;
+        return;
     }
 
-    if ((ret = mount_fs("fs", fsaFd, "/dev/slccmpt01",
+    if ((ret = mount_fs("slccmpt", fsaFd, "/dev/slccmpt01",
                         "/vol/storage_slccmpt01")) < 0)
     {
-        WUPI_putstr("Error: Failed to mount FS.\n");
+        WUPI_putstr("Error: Failed to mount slccmpt:.\n");
         WUPI_waitHome();
-        goto exit;
+        return;
     }
     mounted = true;
 
@@ -243,29 +189,65 @@ int entry(void)
     if (ret < 0)
         WUPI_printf("Install failed. Error Code: %06X\n", -ret);
     WUPI_waitHome();
+}
 
-exit:
+int main()
+{
+    int32_t tv_screen_size, drc_screen_size;
+    VPADStatus vpad;
+
+    WHBProcInit();
+
+    /* Initialize Gamepad */
+    VPADInit();
+
+    /* Initialize screen */
+    OSScreenInit();
+    tv_screen_size = OSScreenGetBufferSizeEx(SCREEN_TV);
+    drc_screen_size = OSScreenGetBufferSizeEx(SCREEN_DRC);
+    screen_size = tv_screen_size + drc_screen_size;
+    screen_buffer = memalign(0x100, screen_size);
+    OSScreenSetBufferEx(SCREEN_TV, screen_buffer); /* TV */
+    OSScreenSetBufferEx(SCREEN_DRC, screen_buffer + tv_screen_size); /* DRC */
+    OSScreenEnableEx(SCREEN_TV, 1);
+    OSScreenEnableEx(SCREEN_DRC, 1);
+    OSScreenClearBufferEx(SCREEN_TV, 0);
+    OSScreenClearBufferEx(SCREEN_DRC, 0);
+
+    WUPI_resetScreen();
+    WUPI_putstr("Press A to install the Homebrew Channel to the Wii Menu.");
+    WUPI_putstr("Press HOME to exit.");
+
+    while (WHBProcIsRunning())
+    {
+        if ((ret = WUPI_pollVPAD(&vpad)) == 0) {
+            if (vpad.trigger & VPAD_BUTTON_A) {
+                WUPI_install();
+                break;
+            }
+                
+        }  
+        else
+        {
+            WUPI_resetScreen();
+            WUPI_printf("Error: VPAD Read failed (%d).", ret);
+            break;
+        }
+    }
+
     if (mounted)
-        unmount_fs("fs");
+        unmount_fs("slccmpt");
     if (fsaFd >= 0)
         IOSUHAX_FSA_Close(fsaFd);
-    ret = 0;
 
     if (exploit)
-    {
         if (mcp)
             MCPHookClose();
         else
             IOSUHAX_Close();
-        /* Reload IOS on exit */
-        OSForceFullRelaunch();
-        SYSLaunchMenu();
-        ret = -3;
-    }
 
-    OSScreenEnableEx(0, 0);
-    OSScreenEnableEx(1, 0);
-    MEMBucket_free(screen_buffer);
-    memoryRelease();
-    return ret;
+    if(screen_buffer) free(screen_buffer);
+    OSScreenShutdown();
+    WHBProcShutdown();
+    return 0;
 }
