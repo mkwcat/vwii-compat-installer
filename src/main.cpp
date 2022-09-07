@@ -17,7 +17,6 @@
  */
 
 #include "installer.h"
-#include "ios_exploit.h"
 #include <coreinit/cache.h>
 #include <coreinit/debug.h>
 #include <coreinit/ios.h>
@@ -25,16 +24,18 @@
 #include <coreinit/screen.h>
 #include <coreinit/thread.h>
 #include <errno.h>
-#include <iosuhax.h>
-#include <iosuhax_devoptab.h>
+#include <mocha/mocha.h>
 #include <malloc.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sndcore2/core.h>
 #include <unistd.h>
 #include <vpad/input.h>
 #include <whb/proc.h>
+
+#include "state.h"
 
 void WUPI_printTop();
 void WUPI_putstr(const char* str);
@@ -43,6 +44,9 @@ void WUPI_resetScreen();
 int32_t wupiLine;
 uint8_t* screen_buffer;
 uint32_t screen_size;
+
+extern FSClient *__wut_devoptab_fs_client;
+static FSCmdBlock cmdBlk;
 
 /* Title data */
 extern const uint8_t title_cetk_bin[];
@@ -60,6 +64,24 @@ extern const uint32_t wupserver_bin_size;
 bool mounted = false, exploit = false;
 CINS_Content contents[2];
 int32_t ret, fsaFd = -1;
+
+bool initFS() {
+    FSInit();
+    FSInitCmdBlock(&cmdBlk);
+    FSSetCmdPriority(&cmdBlk, 0);
+    bool ret = Mocha_UnlockFSClient(__wut_devoptab_fs_client) == MOCHA_RESULT_SUCCESS;
+    if (ret) {
+        Mocha_MountFS("slccmpt", "/dev/slccmpt01", "/vol/storage_slccmpt01");
+        return true;
+    }
+    return false;
+}
+
+void deinitFS() {
+    Mocha_UnmountFS("slccmpt");
+    Mocha_DeInitLibrary();
+    FSShutdown();
+}
 
 static void wupiPrintln(int32_t line, const char* str)
 {
@@ -105,10 +127,10 @@ void WUPI_resetScreen(void)
 
 int32_t WUPI_pollVPAD(VPADStatus* button)
 {
-    int32_t status;
+    VPADReadError status;
     while (1)
     {
-        VPADRead(0, button, 1, &status);
+        VPADRead(VPAD_CHAN_0, button, 1, &status);
         if (status == 0 && button->trigger)
             break;
         usleep(50000);
@@ -119,35 +141,16 @@ int32_t WUPI_pollVPAD(VPADStatus* button)
 void WUPI_waitHome()
 {
     WUPI_putstr("Press HOME to exit.");
-    while(WHBProcIsRunning())
+    while(AppRunning())
         continue;
     return;
 }
 
-static bool mcp = false;
-
 int32_t WUPI_setupInstall(void)
 {
-    if (IOSUHAX_Open(NULL) >= 0)
+    if (Mocha_InitLibrary() == MOCHA_RESULT_SUCCESS)
         return 0;
-    else if (MCPHookOpen() >= 0)
-    {
-        mcp = true;
-        return 0;
-    }
-
-    WUPI_putstr("Doing IOS exploit...");
-    *(volatile unsigned int*)0xF5E70000 = wupserver_bin_size;
-    memcpy((void*)0xF5E70020, &wupserver_bin, wupserver_bin_size);
-    DCStoreRange((void*)0xF5E70000, wupserver_bin_size + 0x40);
-    IOSUExploit();
-    WUPI_putstr("Done!");
-
-    if (MCPHookOpen() < 0)
-        return -1;
-
-    mcp = true;
-    return 0;
+    return -1;
 }
 
 void WUPI_install() {
@@ -161,16 +164,7 @@ void WUPI_install() {
     }
     exploit = true;
 
-    /* Setup IOSUHAX */
-    if ((fsaFd = IOSUHAX_FSA_Open()) < 0)
-    {
-        WUPI_putstr("Error: FSA failed to open.");
-        WUPI_waitHome();
-        return;
-    }
-
-    if ((ret = mount_fs("slccmpt", fsaFd, "/dev/slccmpt01",
-                        "/vol/storage_slccmpt01")) < 0)
+    if (!(ret = initFS()))
     {
         WUPI_putstr("Error: Failed to mount slccmpt:.\n");
         WUPI_waitHome();
@@ -197,6 +191,9 @@ int main()
     VPADStatus vpad;
 
     WHBProcInit();
+    initState();
+    AXInit();
+    AXQuit();
 
     /* Initialize Gamepad */
     VPADInit();
@@ -206,7 +203,7 @@ int main()
     tv_screen_size = OSScreenGetBufferSizeEx(SCREEN_TV);
     drc_screen_size = OSScreenGetBufferSizeEx(SCREEN_DRC);
     screen_size = tv_screen_size + drc_screen_size;
-    screen_buffer = memalign(0x100, screen_size);
+    screen_buffer = (uint8_t*)memalign(0x100, screen_size);
     OSScreenSetBufferEx(SCREEN_TV, screen_buffer); /* TV */
     OSScreenSetBufferEx(SCREEN_DRC, screen_buffer + tv_screen_size); /* DRC */
     OSScreenEnableEx(SCREEN_TV, 1);
@@ -218,7 +215,7 @@ int main()
     WUPI_putstr("Press A to install the Homebrew Channel to the Wii Menu.");
     WUPI_putstr("Press HOME to exit.");
 
-    while (WHBProcIsRunning())
+    while (AppRunning())
     {
         if ((ret = WUPI_pollVPAD(&vpad)) == 0) {
             if (vpad.trigger & VPAD_BUTTON_A) {
@@ -235,19 +232,10 @@ int main()
         }
     }
 
-    if (mounted)
-        unmount_fs("slccmpt");
-    if (fsaFd >= 0)
-        IOSUHAX_FSA_Close(fsaFd);
-
-    if (exploit)
-        if (mcp)
-            MCPHookClose();
-        else
-            IOSUHAX_Close();
+    deinitFS();
 
     if(screen_buffer) free(screen_buffer);
-    OSScreenShutdown();
+    shutdownState();
     WHBProcShutdown();
     return 0;
 }

@@ -46,7 +46,7 @@ CXXFLAGS	:= $(CFLAGS)
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-g $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= -lwut -liosuhax
+LIBS	:= -lwut -lmocha
 
 #-------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level
