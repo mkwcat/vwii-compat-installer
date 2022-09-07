@@ -50,8 +50,6 @@ void WUPI_putstr(const char*);
 #define CINS_STAGE_DELETE_TITLE 9
 
 #define IOS_SUCCESS 0
-#define FS_STATUS_EXISTS -0x30016
-#define FS_STATUS_NOT_FOUND -0x30017
 
 #define CINS_PATH_LEN (sizeof("slccmpt:") + 63)
 
@@ -97,7 +95,7 @@ int32_t CINS_Install(const void* ticket, uint32_t ticket_size, const void* tmd,
         unlink(ticketPath);
 
         ret = mkdir(ticketFolder, 0x666);
-        if (ret == 0 || errno == FS_STATUS_EXISTS)
+        if (ret == 0 || errno == EEXIST)
         {
             CINS_TRY(fd = fopen(ticketPath, "wb"));
             CINS_TRY(fwrite(ticket, ticket_size, 1, fd) == 1);
@@ -118,10 +116,10 @@ int32_t CINS_Install(const void* ticket, uint32_t ticket_size, const void* tmd,
          * word (type) should exist, but the second one (the unique title)
          * shouldn't unless there is save data. */
         ret = mkdir(path, -1);
-        if (ret == 0 || errno == FS_STATUS_EXISTS)
+        if (ret == 0 || errno == EEXIST)
         {
             ret = mkdir(titlePath, -1);
-            if (ret != 0 && errno == FS_STATUS_EXISTS)
+            if (ret != 0 && errno == EEXIST)
             {
                 /* The title is already installed, delete content but preserve
                  * the data directory. */
@@ -129,7 +127,7 @@ int32_t CINS_Install(const void* ticket, uint32_t ticket_size, const void* tmd,
                     "Title directory already exists, deleting content...\n");
                 snprintf(path, CINS_PATH_LEN, "slccmpt:/title/%08x/%08x/content",
                          CINS_ID_HI, CINS_ID_LO);
-                if (unlink(path) == 0 || errno == FS_STATUS_NOT_FOUND)
+                if (unlink(path) == 0 || errno == ENOENT)
                     ret = 0;
             }
         }
@@ -141,7 +139,7 @@ int32_t CINS_Install(const void* ticket, uint32_t ticket_size, const void* tmd,
          * exist. */
         strncpy(pathd, titlePath, CINS_PATH_LEN);
         strncat(pathd, "/data", CINS_PATH_LEN - 1);
-        if (mkdir(pathd, -1) != 0 && errno != FS_STATUS_EXISTS)
+        if (mkdir(pathd, -1) != 0 && errno != EEXIST)
         {
             CINS_Log("Failed to create the data directory, ret = %d\n", ret);
             goto error;
@@ -219,7 +217,7 @@ int32_t CINS_Uninstall(void)
              CINS_ID_LO);
 
     stage = CINS_STAGE_DELETE_TIK;
-    if (unlink(ticketPath) != 0 && errno != FS_STATUS_NOT_FOUND)
+    if (unlink(ticketPath) != 0 && errno != ENOENT)
     {
         /* Deleting the ticket is not 100% necessary. */
         CINS_Log("Failed to delete ticket\n");
@@ -255,7 +253,7 @@ int32_t CINS_Uninstall(void)
         ret = unlink(titlePath);
         if (ret < 0)
         {
-            if (ret != FS_STATUS_NOT_FOUND)
+            if (ret != ENOENT)
                 CINS_Log("Failed to delete title\n");
             else
                 ret = IOS_SUCCESS;
