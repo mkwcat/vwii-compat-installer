@@ -102,8 +102,8 @@ static void wupiPrintln(int32_t line, const char* str)
 
 void WUPI_printTop(void)
 {
-    wupiPrintln(0, "Compat Title Installer v1.1");
-    wupiPrintln(1, "COPYRIGHT (c) 2021 TheLordScruffy");
+    wupiPrintln(0, "Compat Title Installer v1.2");
+    wupiPrintln(1, "COPYRIGHT (c) 2021-2022 TheLordScruffy, DaThinkingChair");
 }
 
 /* I don't care enough to implement a va arg function */
