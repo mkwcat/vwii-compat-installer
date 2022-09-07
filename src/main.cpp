@@ -58,9 +58,6 @@ extern const uint32_t title_00000000_bin_size;
 extern const uint8_t title_00000001_bin[];
 extern const uint32_t title_00000001_bin_size;
 
-extern const uint8_t wupserver_bin[];
-extern const uint32_t wupserver_bin_size;
-
 bool mounted = false, exploit = false;
 CINS_Content contents[2];
 int32_t ret, fsaFd = -1;
