@@ -68,7 +68,12 @@ bool initFS() {
     FSSetCmdPriority(&cmdBlk, 0);
     bool ret = Mocha_UnlockFSClient(__wut_devoptab_fs_client) == MOCHA_RESULT_SUCCESS;
     if (ret) {
-        ret = Mocha_MountFS("slccmpt", nullptr, "/vol/storage_slccmpt01") == MOCHA_RESULT_SUCCESS;
+        ret = Mocha_MountFS("slccmpt", "/dev/slccmpt01", "/vol/storage_slccmpt01") == MOCHA_RESULT_SUCCESS;
+        if(ret)
+            return true;
+        else
+            ret = Mocha_MountFS("slccmpt", nullptr, "/vol/storage_slccmpt01") == MOCHA_RESULT_SUCCESS;
+        
         if(ret)
             return true;
     }
