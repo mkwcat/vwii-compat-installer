@@ -68,20 +68,15 @@ bool initFS() {
     FSSetCmdPriority(&cmdBlk, 0);
     bool ret = Mocha_UnlockFSClient(__wut_devoptab_fs_client) == MOCHA_RESULT_SUCCESS;
     if (ret) {
-        ret = Mocha_MountFS("slccmpt", "/dev/slccmpt01", "/vol/storage_slccmpt01") == MOCHA_RESULT_SUCCESS;
-        if(ret)
-            return true;
-        else
-            ret = Mocha_MountFS("slccmpt", nullptr, "/vol/storage_slccmpt01") == MOCHA_RESULT_SUCCESS;
-        
-        if(ret)
-            return true;
+        Mocha_MountFS("storage_slccmpt01", nullptr, "/vol/storage_slccmpt01");
+        Mocha_MountFS("storage_slccmpt01", "/dev/slccmpt01", "/vol/storage_slccmpt01");
+        return true;
     }
     return false;
 }
 
 void deinitFS() {
-    Mocha_UnmountFS("slccmpt");
+    Mocha_UnmountFS("storage_slccmpt01");
     Mocha_DeInitLibrary();
     FSShutdown();
 }
@@ -103,7 +98,7 @@ static void wupiPrintln(int32_t line, const char* str)
 void WUPI_printTop(void)
 {
     wupiPrintln(0, "Compat Title Installer v1.2");
-    wupiPrintln(1, "COPYRIGHT (c) 2021-2022 TheLordScruffy, DaThinkingChair");
+    wupiPrintln(1, "COPYRIGHT (c) 2021-2023 TheLordScruffy, DaThinkingChair");
 }
 
 /* I don't care enough to implement a va arg function */
@@ -169,7 +164,7 @@ void WUPI_install() {
 
     if (!(ret = initFS()))
     {
-        WUPI_putstr("Error: Failed to mount slccmpt:.\n");
+        WUPI_putstr("Error: Failed to mount storage_slccmpt01:.\n");
         WUPI_waitHome();
         return;
     }

@@ -51,7 +51,7 @@ void WUPI_putstr(const char*);
 
 #define IOS_SUCCESS 0
 
-#define CINS_PATH_LEN (sizeof("slccmpt:") + 63)
+#define CINS_PATH_LEN (sizeof("storage_slccmpt01:") + 63)
 
 #define CINS_ID_HI ((uint32_t)(CINS_TITLEID >> 32))
 #define CINS_ID_LO ((uint32_t)(CINS_TITLEID & 0xFFFFFFFF))
@@ -81,12 +81,12 @@ int32_t CINS_Install(const void* ticket, uint32_t ticket_size, const void* tmd,
      * installation, wrote everything to flash there, then renamed it all to
      * other directories. The wupserver doesn't already support renaming files,
      * and my attempt to add it failed so I gave up. */
-    snprintf(titlePath, CINS_PATH_LEN, "slccmpt:/title/%08x/%08x", CINS_ID_HI,
+    snprintf(titlePath, CINS_PATH_LEN, "storage_slccmpt01:/title/%08x/%08x", CINS_ID_HI,
              CINS_ID_LO);
-    snprintf(path, CINS_PATH_LEN, "slccmpt:/title/%08x", CINS_ID_HI);
-    snprintf(ticketPath, CINS_PATH_LEN, "slccmpt:/ticket/%08x/%08x.tik", CINS_ID_HI,
+    snprintf(path, CINS_PATH_LEN, "storage_slccmpt01:/title/%08x", CINS_ID_HI);
+    snprintf(ticketPath, CINS_PATH_LEN, "storage_slccmpt01:/ticket/%08x/%08x.tik", CINS_ID_HI,
              CINS_ID_LO);
-    snprintf(ticketFolder, CINS_PATH_LEN, "slccmpt:/ticket/%08x", CINS_ID_HI);
+    snprintf(ticketFolder, CINS_PATH_LEN, "storage_slccmpt01:/ticket/%08x", CINS_ID_HI);
     /* Init stage is not needed anymore. */
 
     CINS_Log("Writing ticket...\n");
@@ -125,7 +125,7 @@ int32_t CINS_Install(const void* ticket, uint32_t ticket_size, const void* tmd,
                  * the data directory. */
                 CINS_Log(
                     "Title directory already exists, deleting content...\n");
-                snprintf(path, CINS_PATH_LEN, "slccmpt:/title/%08x/%08x/content",
+                snprintf(path, CINS_PATH_LEN, "storage_slccmpt01:/title/%08x/%08x/content",
                          CINS_ID_HI, CINS_ID_LO);
                 if (unlink(path) == 0 || errno == ENOENT)
                     ret = 0;
@@ -171,7 +171,7 @@ int32_t CINS_Install(const void* ticket, uint32_t ticket_size, const void* tmd,
         {
             // CINS_Log("Writing content %08x.app\n", i);
             snprintf(path, CINS_PATH_LEN,
-                     "slccmpt:/title/%08x/%08x/content/%08x.app", CINS_ID_HI,
+                     "storage_slccmpt01:/title/%08x/%08x/content/%08x.app", CINS_ID_HI,
                      CINS_ID_LO, i);
 
             CINS_TRY(fd = fopen(path, "wb"));
@@ -211,9 +211,9 @@ int32_t CINS_Uninstall(void)
     // uint32_t cnt;
 
     CINS_Log("Begin uninstall...\n");
-    snprintf(titlePath, CINS_PATH_LEN, "slccmpt:/title/%08X/%08X", CINS_ID_HI,
+    snprintf(titlePath, CINS_PATH_LEN, "storage_slccmpt01:/title/%08X/%08X", CINS_ID_HI,
              CINS_ID_LO);
-    snprintf(ticketPath, CINS_PATH_LEN, "slccmpt:/ticket/%08X/%08X.tik", CINS_ID_HI,
+    snprintf(ticketPath, CINS_PATH_LEN, "storage_slccmpt01:/ticket/%08X/%08X.tik", CINS_ID_HI,
              CINS_ID_LO);
 
     stage = CINS_STAGE_DELETE_TIK;
@@ -234,7 +234,7 @@ int32_t CINS_Uninstall(void)
         //CINS_TRY(ES_DeleteTitleContent(CINS_TITLEID));
 
         snprintf(path, CINS_PATH_LEN,
-                 "slccmpt:/title/%08X/%08X/data",
+                 "storage_slccmpt01:/title/%08X/%08X/data",
                  CINS_ID_HI, CINS_ID_LO);
         ret = ISFS_ReadDir(path, NULL, &cnt);
         /* ret < 0 would normally cause a failure in the Wii Menu channel
@@ -265,7 +265,7 @@ int32_t CINS_Uninstall(void)
              * (untested) */
             uint32_t num;
 
-            snprintf(titlePath, 64, "slccmpt:/title/%08X",
+            snprintf(titlePath, 64, "storage_slccmpt01:/title/%08X",
                      CINS_ID_HI);
             ret = ISFS_ReadDir(titlePath, NULL, &num);
 
