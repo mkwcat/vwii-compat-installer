@@ -1,10 +1,5 @@
-FROM wiiuenv/devkitppc:20220806 AS final
+FROM wiiuenv/devkitppc:20220917 AS final
 
-RUN git clone --recursive https://github.com/wiiu-env/libmocha --single-branch && \
- cd libmocha && \
- make -j$(nproc) && \
- make install && \
- cd .. && \
- rm -rf libmocha
+COPY --from=wiiuenv/libmocha:20220919 /artifacts $DEVKITPRO
 
 WORKDIR /project
