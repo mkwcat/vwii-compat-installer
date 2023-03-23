@@ -97,7 +97,7 @@ static void wupiPrintln(int32_t line, const char* str)
 
 void WUPI_printTop(void)
 {
-    wupiPrintln(0, "Compat Title Installer v1.2");
+    wupiPrintln(0, "Compat Title Installer v1.3");
     wupiPrintln(1, "COPYRIGHT (c) 2021-2023 TheLordScruffy, DaThinkingChair");
 }
 
