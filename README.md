@@ -5,24 +5,20 @@ simply installs the Homebrew Channel.
 
 ## Building
 
-You need devkitPPC and devkitARM installed, and the environment variables set
+You need devkitPPC, devkitARM and WUT installed, and the environment variables set
 correctly. You will need the following libraries:
 
-* [dynamic_libs](https://github.com/Maschell/dynamic_libs)
-* [libutils](https://github.com/Maschell/libutils)
-* [libiosuhax](https://github.com/dimok789/libiosuhax)
+* [libmocha](https://github.com/wiiu-env/libmocha)
 
-If everything is installed, run 'make' and the output will be available as
-'compat-installer.elf'.
+If everything is installed, run 'make release' and the output will be available as
+'compat_installer-HBL.zip' and 'compat_installer-Aroma.zip'.
 
 ## Credits
 
 * Dimok, smealum, others for iosuhax and Mocha CFW.
 * FIX94, this repo is largely based off of wuphax.
-
-Portions of Mocha CFW are included in binary form. The source code of the
-specific version used here is from
-[FIX94/wuphax](https://github.com/fix94/wuphax).
+* Adinaton on Discord, for the awesome icons
+* TheLordScruffy/mkwcat, for the original Compat Title Installer
 
 ## License
 

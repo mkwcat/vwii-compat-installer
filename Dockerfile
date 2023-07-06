@@ -1,5 +1,7 @@
-FROM wiiuenv/devkitppc:20220917 AS final
+FROM ghcr.io/wiiu-env/devkitppc:20230402
 
-COPY --from=wiiuenv/libmocha:20220919 /artifacts $DEVKITPRO
+COPY --from=ghcr.io/wiiu-env/libmocha:20230417 /artifacts $DEVKITPRO
+
+RUN git config --global --add safe.directory /project
 
 WORKDIR /project

@@ -2,3 +2,6 @@ build
 *.elf
 *.lst
 *.rpx
+*.wuhb
+*.zip
+.DS_Store

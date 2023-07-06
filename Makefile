@@ -5,9 +5,6 @@
 ifeq ($(strip $(DEVKITPRO)),)
 $(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>/devkitpro")
 endif
-export LIBOGC_INC	:=	$(DEVKITPRO)/libogc/include
-export LIBOGC_LIB	:=	$(DEVKITPRO)/libogc/lib/wii
-export PORTLIBS		:=	$(DEVKITPRO)/portlibs/ppc
 
 TOPDIR ?= $(CURDIR)
 
@@ -16,9 +13,9 @@ TOPDIR ?= $(CURDIR)
 # APP_SHORTNAME sets the short name of the application
 # APP_AUTHOR sets the author of the application
 #-------------------------------------------------------------------------------
-#APP_NAME	:= Application Name
-#APP_SHORTNAME	:= App Name
-#APP_AUTHOR	:= Built with devkitPPC & wut
+APP_NAME	    := compat_installer
+APP_SHORTNAME	:= compat_installer
+APP_AUTHOR	    := TheLordScruffy, DaThinkingChair
 
 include $(DEVKITPRO)/wut/share/wut_rules
 
@@ -26,22 +23,34 @@ include $(DEVKITPRO)/wut/share/wut_rules
 # TARGET is the name of the output
 # BUILD is the directory where object files & intermediate files will be placed
 # SOURCES is a list of directories containing source code
+# DATA is a list of directories containing data files
 # INCLUDES is a list of directories containing header files
+# CONTENT is the path to the bundled folder that will be mounted as /vol/content/
+# ICON is the game icon, leave blank to use default rule
+# TV_SPLASH is the image displayed during bootup on the TV, leave blank to use default rule
+# DRC_SPLASH is the image displayed during bootup on the DRC, leave blank to use default rule
 #-------------------------------------------------------------------------------
 TARGET		:=	compat_installer
 BUILD		:=	build
-BUILD_DBG	:=	$(TARGET)_dbg
 SOURCES		:=	src
-INCLUDES	:=  
+DATA		:=	data
+INCLUDES	:=	include
+CONTENT		:=
+ICON		:=	meta/wuhb/icon.png
+TV_SPLASH	:=
+DRC_SPLASH	:=
+
 #-------------------------------------------------------------------------------
 # options for code generation
 #-------------------------------------------------------------------------------
-CFLAGS	:=	-g -Wall -Ofast -ffunction-sections -fno-use-linker-plugin -fno-lto -Wno-dangling-else \
-			$(MACHDEP)
+CFLAGS	:=	$(MACHDEP) $(INCLUDE) -Ofast -flto=auto -fno-fat-lto-objects \
+				-fuse-linker-plugin -fipa-pta -pipe \
+				-Wall -Wextra -Wundef -Wshadow -Wpointer-arith \
+				-Wcast-align  \
+				-D__WIIU__ -D__WUT__ \
+				-Wno-trigraphs
 
-CFLAGS	+=	$(INCLUDE) -D__WIIU__ -D__WUT__
-
-CXXFLAGS	:= $(CFLAGS)
+CXXFLAGS	:= -std=gnu++20 $(CFLAGS)
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-g $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
@@ -71,9 +80,8 @@ export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
-sFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
-SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.S)))
-BINFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.bin)))
+SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
+BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 
 #-------------------------------------------------------------------------------
 # use CXX for linking C++ projects, CC for standard C
@@ -96,11 +104,37 @@ export HFILES_BIN	:=	$(addsuffix .h,$(subst .,_,$(BINFILES)))
 
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 			$(foreach dir,$(LIBDIRS),-I$(dir)/include) \
-			-I$(CURDIR)/$(BUILD) -I$(LIBOGC_INC) \
 			-I$(CURDIR)/$(BUILD)
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
+ifneq (,$(strip $(CONTENT)))
+	export APP_CONTENT := $(TOPDIR)/$(CONTENT)
+endif
+
+ifneq (,$(strip $(ICON)))
+	export APP_ICON := $(TOPDIR)/$(ICON)
+else ifneq (,$(wildcard $(TOPDIR)/$(TARGET).png))
+	export APP_ICON := $(TOPDIR)/$(TARGET).png
+else ifneq (,$(wildcard $(TOPDIR)/icon.png))
+	export APP_ICON := $(TOPDIR)/icon.png
+endif
+
+ifneq (,$(strip $(TV_SPLASH)))
+	export APP_TV_SPLASH := $(TOPDIR)/$(TV_SPLASH)
+else ifneq (,$(wildcard $(TOPDIR)/tv-splash.png))
+	export APP_TV_SPLASH := $(TOPDIR)/tv-splash.png
+else ifneq (,$(wildcard $(TOPDIR)/splash.png))
+	export APP_TV_SPLASH := $(TOPDIR)/splash.png
+endif
+
+ifneq (,$(strip $(DRC_SPLASH)))
+	export APP_DRC_SPLASH := $(TOPDIR)/$(DRC_SPLASH)
+else ifneq (,$(wildcard $(TOPDIR)/drc-splash.png))
+	export APP_DRC_SPLASH := $(TOPDIR)/drc-splash.png
+else ifneq (,$(wildcard $(TOPDIR)/splash.png))
+	export APP_DRC_SPLASH := $(TOPDIR)/splash.png
+endif
 
 .PHONY: $(BUILD) clean all
 
@@ -108,14 +142,23 @@ export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 all: $(BUILD)
 
 $(BUILD):
-	@[ -d $@ ] || mkdir -p $@
+	@$(shell [ ! -d $(BUILD) ] && mkdir -p $(BUILD))
 	@$(MAKE) --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 
 #-------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(TARGET).rpx $(TARGET).elf
+	@rm -fr $(BUILD) $(TARGET).wuhb $(TARGET).rpx $(TARGET).elf SaveMiiModWUTPort *.zip
 
+#-------------------------------------------------------------------------------
+release: $(BUILD)
+	@mkdir -p compat_installer
+	@cp compat_installer.rpx compat_installer
+	@cp meta/hbl/icon.png compat_installer
+	@cp meta/hbl/meta.xml compat_installer
+	@zip -9 -r compat_installer-HBL.zip compat_installer
+	@zip -9 compat_installer-Aroma.zip compat_installer.wuhb
+	@rm -rf compat_installer
 #-------------------------------------------------------------------------------
 else
 .PHONY:	all
@@ -125,8 +168,9 @@ DEPENDS	:=	$(OFILES:.o=.d)
 #-------------------------------------------------------------------------------
 # main targets
 #-------------------------------------------------------------------------------
-all	:	$(OUTPUT).rpx
+all	:	$(OUTPUT).wuhb
 
+$(OUTPUT).wuhb	:	$(OUTPUT).rpx
 $(OUTPUT).rpx	:	$(OUTPUT).elf
 $(OUTPUT).elf	:	$(OFILES)
 
@@ -135,15 +179,10 @@ $(OFILES_SRC)	: $(HFILES_BIN)
 #-------------------------------------------------------------------------------
 # you need a rule like this for each extension you use as binary data
 #-------------------------------------------------------------------------------
-%.o: %.cpp
+%.bin.o	%_bin.h :	%.bin
+#-------------------------------------------------------------------------------
 	@echo $(notdir $<)
-	@$(CXX) -MMD -MP -MF $(DEPSDIR)/$*.d $(CXXFLAGS) -c $< -o $@ $(ERROR_FILTER)
-
-#---------------------------------------------------------------------------------
-%.o: %.c
-	@echo $(notdir $<)
-	$(SILENTCMD)$(CC) -MMD -MP -MF $*.d $(CFLAGS) $(if $(filter memdebug.o,$@),-fno-sanitize=all )-c $< -o $@ $(ERROR_FILTER)
-
+	@$(bin2o)
 #-------------------------------------------------------------------------------
 %.o %.bin.o : %.bin
 #-------------------------------------------------------------------------------
@@ -154,3 +193,4 @@ $(OFILES_SRC)	: $(HFILES_BIN)
 
 #-------------------------------------------------------------------------------
 endif
+#-------------------------------------------------------------------------------

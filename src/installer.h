@@ -28,24 +28,23 @@ extern "C" {
 
 typedef struct
 {
-    const void* data;
+    const void *data;
     size_t length;
 } CINS_Content;
 
-#define CINS_TITLEID 0x000100014F484243
-#define CINS_GROUPID 0x5453
+#define CINS_TITLEID       0x000100014F484243
+#define CINS_GROUPID       0x5453
 /* IOS58 */
-#define CINS_SYSVERSION 0x000000010000003A
+#define CINS_SYSVERSION    0x000000010000003A
 #define CINS_TITLE_VERSION 0x0000
 
 extern int32_t CINS_iosuhaxFd;
 extern int32_t CINS_fsaFd;
 extern int32_t CINS_logLine;
 
-int32_t CINS_Install(const void* ticket, uint32_t ticket_size, const void* tmd,
-                     uint32_t tmd_size, CINS_Content* contents,
+int32_t CINS_Install(const void *ticket, uint32_t ticket_size, const void *tmd,
+                     uint32_t tmd_size, CINS_Content *contents,
                      uint16_t numContents);
-int32_t CINS_Uninstall();
 
 #ifdef __cplusplus
 }

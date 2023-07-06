@@ -20,10 +20,16 @@ jobs:
       - name: Build artifacts
         run: |
           docker build . --file Dockerfile --tag builder
-          docker run --rm -v ${PWD}:/project builder make -j$(nproc)
+          docker run --rm -v ${PWD}:/project builder make -j$(nproc) release
       - name: Upload HBL version
         uses: actions/upload-artifact@v3
         with:
-          name: compat_installer
-          path: compat_installer.rpx
+          name: compat_installer-HBL.zip
+          path: compat_installer-HBL.zip
+          if-no-files-found: warn
+      - name: Upload Aroma version
+        uses: actions/upload-artifact@v3
+        with:
+          name: compat_installer-Aroma.zip
+          path: compat_installer-Aroma.zip
           if-no-files-found: warn

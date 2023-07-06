@@ -24,25 +24,25 @@
 #include <coreinit/screen.h>
 #include <coreinit/thread.h>
 #include <errno.h>
-#include <mocha/mocha.h>
 #include <malloc.h>
+#include <mocha/mocha.h>
+#include <sndcore2/core.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sndcore2/core.h>
 #include <unistd.h>
 #include <vpad/input.h>
 #include <whb/proc.h>
 
-#include "state.h"
+#include "StateUtils.h"
 
 void WUPI_printTop();
-void WUPI_putstr(const char* str);
+void WUPI_putstr(const char *str);
 void WUPI_resetScreen();
 
 int32_t wupiLine;
-uint8_t* screen_buffer;
+uint8_t *screen_buffer;
 uint32_t screen_size;
 
 extern FSClient *__wut_devoptab_fs_client;
@@ -66,10 +66,12 @@ bool initFS() {
     FSInit();
     FSInitCmdBlock(&cmdBlk);
     FSSetCmdPriority(&cmdBlk, 0);
-    bool ret = Mocha_UnlockFSClient(__wut_devoptab_fs_client) == MOCHA_RESULT_SUCCESS;
-    if (ret) {
+    bool retUnlock =
+            Mocha_UnlockFSClient(__wut_devoptab_fs_client) == MOCHA_RESULT_SUCCESS;
+    if (retUnlock) {
         Mocha_MountFS("storage_slccmpt01", nullptr, "/vol/storage_slccmpt01");
-        Mocha_MountFS("storage_slccmpt01", "/dev/slccmpt01", "/vol/storage_slccmpt01");
+        Mocha_MountFS("storage_slccmpt01", "/dev/slccmpt01",
+                      "/vol/storage_slccmpt01");
         return true;
     }
     return false;
@@ -81,8 +83,7 @@ void deinitFS() {
     FSShutdown();
 }
 
-static void wupiPrintln(int32_t line, const char* str)
-{
+static void wupiPrintln(int32_t line, const char *str) {
     /* put line twice for double buffer */
     OSScreenPutFontEx(SCREEN_TV, 0, line, str);
     OSScreenPutFontEx(SCREEN_DRC, 0, line, str);
@@ -95,39 +96,33 @@ static void wupiPrintln(int32_t line, const char* str)
     OSScreenFlipBuffersEx(SCREEN_DRC);
 }
 
-void WUPI_printTop(void)
-{
+void WUPI_printTop() {
     wupiPrintln(0, "Compat Title Installer v1.3");
     wupiPrintln(1, "COPYRIGHT (c) 2021-2023 TheLordScruffy, DaThinkingChair");
 }
 
 /* I don't care enough to implement a va arg function */
-#define WUPI_printf(...)                                                       \
-    do                                                                         \
-    {                                                                          \
-        char _wupi_print_str[256];                                             \
-        snprintf(_wupi_print_str, 255, __VA_ARGS__);                           \
-        WUPI_putstr(_wupi_print_str);                                          \
+#define WUPI_printf(...)                             \
+    do {                                             \
+        char _wupi_print_str[256];                   \
+        snprintf(_wupi_print_str, 255, __VA_ARGS__); \
+        WUPI_putstr(_wupi_print_str);                \
     } while (0)
 
-void WUPI_putstr(const char* str)
-{
+void WUPI_putstr(const char *str) {
     wupiPrintln(wupiLine++, str);
 }
 
-void WUPI_resetScreen(void)
-{
-    memset((void*)screen_buffer, 0, screen_size);
+void WUPI_resetScreen() {
+    memset((void *) screen_buffer, 0, screen_size);
     wupiLine = 4;
 
     WUPI_printTop();
 }
 
-int32_t WUPI_pollVPAD(VPADStatus* button)
-{
+int32_t WUPI_pollVPAD(VPADStatus *button) {
     VPADReadError status;
-    while (1)
-    {
+    while (1) {
         VPADRead(VPAD_CHAN_0, button, 1, &status);
         if (status == 0 && button->trigger)
             break;
@@ -136,16 +131,14 @@ int32_t WUPI_pollVPAD(VPADStatus* button)
     return status;
 }
 
-void WUPI_waitHome()
-{
+void WUPI_waitHome() {
     WUPI_putstr("Press HOME to exit.");
-    while(AppRunning())
+    while (State::AppRunning())
         continue;
     return;
 }
 
-int32_t WUPI_setupInstall(void)
-{
+int32_t WUPI_setupInstall() {
     if (Mocha_InitLibrary() == MOCHA_RESULT_SUCCESS)
         return 0;
     return -1;
@@ -154,16 +147,14 @@ int32_t WUPI_setupInstall(void)
 void WUPI_install() {
     /* We should only end up here if the A button was pressed. */
     WUPI_resetScreen();
-    if (WUPI_setupInstall() < 0)
-    {
+    if (WUPI_setupInstall() < 0) {
         WUPI_putstr("Error: IOS exploit failed.");
         WUPI_waitHome();
         return;
     }
     exploit = true;
 
-    if (!(ret = initFS()))
-    {
+    if (!(ret = initFS())) {
         WUPI_putstr("Error: Failed to mount storage_slccmpt01:.\n");
         WUPI_waitHome();
         return;
@@ -171,25 +162,23 @@ void WUPI_install() {
     mounted = true;
 
     WUPI_putstr("Installing the Homebrew Channel...\n");
-    contents[0].data = (const void*)title_00000000_bin;
+    contents[0].data = (const void *) title_00000000_bin;
     contents[0].length = title_00000000_bin_size;
-    contents[1].data = (const void*)title_00000001_bin;
+    contents[1].data = (const void *) title_00000001_bin;
     contents[1].length = title_00000001_bin_size;
-    ret = CINS_Install((const void*)title_cetk_bin, title_cetk_bin_size,
-                       (const void*)title_tmd_bin, title_tmd_bin_size, contents,
+    ret = CINS_Install((const void *) title_cetk_bin, title_cetk_bin_size,
+                       (const void *) title_tmd_bin, title_tmd_bin_size, contents,
                        2);
     if (ret < 0)
         WUPI_printf("Install failed. Error Code: %06X\n", -ret);
     WUPI_waitHome();
 }
 
-int main()
-{
+int main() {
     int32_t tv_screen_size, drc_screen_size;
     VPADStatus vpad;
 
-    WHBProcInit();
-    initState();
+    State::init();
     AXInit();
     AXQuit();
 
@@ -201,8 +190,8 @@ int main()
     tv_screen_size = OSScreenGetBufferSizeEx(SCREEN_TV);
     drc_screen_size = OSScreenGetBufferSizeEx(SCREEN_DRC);
     screen_size = tv_screen_size + drc_screen_size;
-    screen_buffer = (uint8_t*)memalign(0x100, screen_size);
-    OSScreenSetBufferEx(SCREEN_TV, screen_buffer); /* TV */
+    screen_buffer = (uint8_t *) memalign(0x100, screen_size);
+    OSScreenSetBufferEx(SCREEN_TV, screen_buffer);                   /* TV */
     OSScreenSetBufferEx(SCREEN_DRC, screen_buffer + tv_screen_size); /* DRC */
     OSScreenEnableEx(SCREEN_TV, 1);
     OSScreenEnableEx(SCREEN_DRC, 1);
@@ -213,17 +202,13 @@ int main()
     WUPI_putstr("Press A to install the Homebrew Channel to the Wii Menu.");
     WUPI_putstr("Press HOME to exit.");
 
-    while (AppRunning())
-    {
+    while (State::AppRunning()) {
         if ((ret = WUPI_pollVPAD(&vpad)) == 0) {
             if (vpad.trigger & VPAD_BUTTON_A) {
                 WUPI_install();
                 break;
             }
-                
-        }  
-        else
-        {
+        } else {
             WUPI_resetScreen();
             WUPI_printf("Error: VPAD Read failed (%d).", ret);
             break;
@@ -232,8 +217,8 @@ int main()
 
     deinitFS();
 
-    if(screen_buffer) free(screen_buffer);
-    shutdownState();
-    WHBProcShutdown();
+    if (screen_buffer)
+        free(screen_buffer);
+    State::shutdown();
     return 0;
 }
