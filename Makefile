@@ -13,8 +13,8 @@ TOPDIR ?= $(CURDIR)
 # APP_SHORTNAME sets the short name of the application
 # APP_AUTHOR sets the author of the application
 #-------------------------------------------------------------------------------
-APP_NAME	    := compat_installer
-APP_SHORTNAME	:= compat_installer
+APP_NAME	    := vWii Compat Installer
+APP_SHORTNAME	:= vWii Compat Title Installer
 APP_AUTHOR	    := TheLordScruffy, DaThinkingChair
 
 include $(DEVKITPRO)/wut/share/wut_rules
@@ -37,8 +37,8 @@ DATA		:=	data
 INCLUDES	:=	include
 CONTENT		:=
 ICON		:=	meta/wuhb/icon.png
-TV_SPLASH	:=
-DRC_SPLASH	:=
+TV_SPLASH	:=  meta/wuhb/tv-splash.png
+DRC_SPLASH	:=  meta/wuhb/drc-splash.png
 
 #-------------------------------------------------------------------------------
 # options for code generation
@@ -53,7 +53,7 @@ CFLAGS	:=	$(MACHDEP) $(INCLUDE) -Ofast -flto=auto -fno-fat-lto-objects \
 CXXFLAGS	:= -std=gnu++20 $(CFLAGS)
 
 ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-g $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map)
+LDFLAGS	=	-g $(ARCH) $(RPXSPECS) -Wl,-Map,$(notdir $*.map) -Wno-odr
 
 LIBS	:= -lwut -lmocha
 

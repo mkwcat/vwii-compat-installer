@@ -19,22 +19,23 @@
 #include "installer.h"
 #include <coreinit/cache.h>
 #include <coreinit/debug.h>
+#include <coreinit/filesystem_fsa.h>
 #include <coreinit/ios.h>
 #include <coreinit/mcp.h>
 #include <coreinit/screen.h>
 #include <coreinit/thread.h>
-#include <errno.h>
 #include <malloc.h>
 #include <mocha/mocha.h>
+#include <padscore/kpad.h>
 #include <sndcore2/core.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <vpad/input.h>
 #include <whb/proc.h>
 
+#include "InputUtils.h"
 #include "StateUtils.h"
 
 void WUPI_printTop();
@@ -45,8 +46,7 @@ int32_t wupiLine;
 uint8_t *screen_buffer;
 uint32_t screen_size;
 
-extern FSClient *__wut_devoptab_fs_client;
-static FSCmdBlock cmdBlk;
+FSAClientHandle fsaClient;
 
 /* Title data */
 extern const uint8_t title_cetk_bin[];
@@ -63,24 +63,22 @@ CINS_Content contents[2];
 int32_t ret, fsaFd = -1;
 
 bool initFS() {
-    FSInit();
-    FSInitCmdBlock(&cmdBlk);
-    FSSetCmdPriority(&cmdBlk, 0);
+    FSAInit();
+    fsaClient = FSAAddClient(nullptr);
     bool retUnlock =
-            Mocha_UnlockFSClient(__wut_devoptab_fs_client) == MOCHA_RESULT_SUCCESS;
+            Mocha_UnlockFSClientEx(fsaClient) == MOCHA_RESULT_SUCCESS;
     if (retUnlock) {
-        Mocha_MountFS("storage_slccmpt01", nullptr, "/vol/storage_slccmpt01");
-        Mocha_MountFS("storage_slccmpt01", "/dev/slccmpt01",
-                      "/vol/storage_slccmpt01");
+        FSAMount(fsaClient, "/dev/slccmpt01", "/vol/slccmpt01", FSA_MOUNT_FLAG_LOCAL_MOUNT, nullptr, 0);
         return true;
     }
     return false;
 }
 
 void deinitFS() {
-    Mocha_UnmountFS("storage_slccmpt01");
+    FSAUnmount(fsaClient, "/vol/slccmpt01", FSA_UNMOUNT_FLAG_NONE);
     Mocha_DeInitLibrary();
-    FSShutdown();
+    FSADelClient(fsaClient);
+    FSAShutdown();
 }
 
 static void wupiPrintln(int32_t line, const char *str) {
@@ -97,7 +95,7 @@ static void wupiPrintln(int32_t line, const char *str) {
 }
 
 void WUPI_printTop() {
-    wupiPrintln(0, "Compat Title Installer v1.3");
+    wupiPrintln(0, "Compat Title Installer v1.4");
     wupiPrintln(1, "COPYRIGHT (c) 2021-2023 TheLordScruffy, DaThinkingChair");
 }
 
@@ -118,17 +116,6 @@ void WUPI_resetScreen() {
     wupiLine = 4;
 
     WUPI_printTop();
-}
-
-int32_t WUPI_pollVPAD(VPADStatus *button) {
-    VPADReadError status;
-    while (1) {
-        VPADRead(VPAD_CHAN_0, button, 1, &status);
-        if (status == 0 && button->trigger)
-            break;
-        usleep(50000);
-    }
-    return status;
 }
 
 void WUPI_waitHome() {
@@ -155,7 +142,7 @@ void WUPI_install() {
     exploit = true;
 
     if (!(ret = initFS())) {
-        WUPI_putstr("Error: Failed to mount storage_slccmpt01:.\n");
+        WUPI_putstr("Error: Failed to mount /vol/slccmpt01.\n");
         WUPI_waitHome();
         return;
     }
@@ -176,14 +163,15 @@ void WUPI_install() {
 
 int main() {
     int32_t tv_screen_size, drc_screen_size;
-    VPADStatus vpad;
+    Input input;
 
     State::init();
     AXInit();
     AXQuit();
 
-    /* Initialize Gamepad */
-    VPADInit();
+    WPADInit();
+    KPADInit();
+    WPADEnableURCC(1);
 
     /* Initialize screen */
     OSScreenInit();
@@ -203,14 +191,14 @@ int main() {
     WUPI_putstr("Press HOME to exit.");
 
     while (State::AppRunning()) {
-        if ((ret = WUPI_pollVPAD(&vpad)) == 0) {
-            if (vpad.trigger & VPAD_BUTTON_A) {
-                WUPI_install();
-                break;
-            }
-        } else {
+        input.read();
+        if (input.get(TRIGGER, PAD_BUTTON_ANY)) {
             WUPI_resetScreen();
-            WUPI_printf("Error: VPAD Read failed (%d).", ret);
+            WUPI_putstr("Press A to install the Homebrew Channel to the Wii Menu.");
+            WUPI_putstr("Press HOME to exit.");
+        }
+        if (input.get(TRIGGER, PAD_BUTTON_A)) {
+            WUPI_install();
             break;
         }
     }

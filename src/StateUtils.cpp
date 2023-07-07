@@ -2,6 +2,7 @@
 #include <coreinit/core.h>
 #include <coreinit/dynload.h>
 #include <coreinit/foreground.h>
+#include <coreinit/screen.h>
 #include <proc_ui/procui.h>
 #include <whb/proc.h>
 
@@ -47,7 +48,9 @@ bool State::AppRunning() {
 }
 
 void State::shutdown() {
-    if (!aroma)
+    if (!aroma) {
         WHBProcShutdown();
+        OSScreenShutdown();
+    }
     ProcUIShutdown();
 }
