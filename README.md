@@ -17,7 +17,7 @@ If everything is installed, run 'make release' and the output will be available 
 
 * Dimok, smealum, others for iosuhax and Mocha CFW.
 * FIX94, this repo is largely based off of wuphax.
-* Adinaton on Discord, for the awesome icons
+* @Ingunar on GitHub, for the awesome icons
 * TheLordScruffy/mkwcat, for the original Compat Title Installer
 
 ## License
