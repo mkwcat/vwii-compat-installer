@@ -172,6 +172,8 @@ void WUPI_install() {
                        2);
     free(title_cetk_bin_aligned);
     free(title_tmd_bin_aligned);
+    free(title_00000000_bin_aligned);
+    free(title_00000001_bin_aligned);
     if (ret < 0)
         WUPI_printf("Install failed. Error Code: %06X\n", -ret);
     WUPI_waitHome();
