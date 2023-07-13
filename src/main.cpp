@@ -24,6 +24,7 @@
 #include <coreinit/mcp.h>
 #include <coreinit/screen.h>
 #include <coreinit/thread.h>
+#include <cstring>
 #include <malloc.h>
 #include <mocha/mocha.h>
 #include <padscore/kpad.h>
@@ -37,6 +38,8 @@
 
 #include "InputUtils.h"
 #include "StateUtils.h"
+
+#define FS_ALIGN(x) ((x + 0x3F) & ~(0x3F))
 
 void WUPI_printTop();
 void WUPI_putstr(const char *str);
@@ -149,13 +152,26 @@ void WUPI_install() {
     mounted = true;
 
     WUPI_putstr("Installing the Homebrew Channel...\n");
-    contents[0].data = (const void *) title_00000000_bin;
-    contents[0].length = title_00000000_bin_size;
-    contents[1].data = (const void *) title_00000001_bin;
-    contents[1].length = title_00000001_bin_size;
-    ret = CINS_Install((const void *) title_cetk_bin, title_cetk_bin_size,
-                       (const void *) title_tmd_bin, title_tmd_bin_size, contents,
+
+    void *title_cetk_bin_aligned = aligned_alloc(0x40, FS_ALIGN(title_cetk_bin_size));
+    void *title_tmd_bin_aligned = aligned_alloc(0x40, FS_ALIGN(title_tmd_bin_size));
+    memmove(title_cetk_bin_aligned, title_cetk_bin, title_cetk_bin_size);
+    memmove(title_tmd_bin_aligned, title_tmd_bin, title_tmd_bin_size);
+
+    void *title_00000000_bin_aligned = aligned_alloc(0x40, FS_ALIGN(title_00000000_bin_size));
+    void *title_00000001_bin_aligned = aligned_alloc(0x40, FS_ALIGN(title_00000001_bin_size));
+    memmove(title_00000000_bin_aligned, title_00000000_bin, title_00000000_bin_size);
+    memmove(title_00000001_bin_aligned, title_00000001_bin, title_00000001_bin_size);
+
+    contents[0].data = (const void *) title_00000000_bin_aligned;
+    contents[0].length = FS_ALIGN(title_00000000_bin_size);
+    contents[1].data = (const void *) title_00000001_bin_aligned;
+    contents[1].length = FS_ALIGN(title_00000001_bin_size);
+    ret = CINS_Install((const void *) title_cetk_bin_aligned, FS_ALIGN(title_cetk_bin_size),
+                       (const void *) title_tmd_bin_aligned, FS_ALIGN(title_tmd_bin_size), contents,
                        2);
+    free(title_cetk_bin_aligned);
+    free(title_tmd_bin_aligned);
     if (ret < 0)
         WUPI_printf("Install failed. Error Code: %06X\n", -ret);
     WUPI_waitHome();
