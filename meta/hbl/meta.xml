@@ -2,7 +2,7 @@
 <app version="1">
   <name>vWii Compat Installer</name>
   <coder>TheLordScruffy, DaThinkingChair</coder>
-  <version>1.5</version>
+  <version>1.6</version>
  <url>https://github.com/Xpl0itU/vwii-compat-installer</url>
   <short_description>Install the Homebrew Channel to the vWii Menu from Wii U Mode.</short_description>
 <long_description> Install a channel to the vWii Menu from Wii U Mode. In its current state, it simply installs the Homebrew Channel.

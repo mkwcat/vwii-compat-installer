@@ -98,7 +98,7 @@ static void wupiPrintln(int32_t line, const char *str) {
 }
 
 void WUPI_printTop() {
-    wupiPrintln(0, "Compat Title Installer v1.5");
+    wupiPrintln(0, "Compat Title Installer v1.6");
     wupiPrintln(1, "COPYRIGHT (c) 2021-2023 TheLordScruffy, DaThinkingChair");
 }
 
@@ -164,11 +164,11 @@ void WUPI_install() {
     memmove(title_00000001_bin_aligned, title_00000001_bin, title_00000001_bin_size);
 
     contents[0].data = (const void *) title_00000000_bin_aligned;
-    contents[0].length = FS_ALIGN(title_00000000_bin_size);
+    contents[0].length = title_00000000_bin_size;
     contents[1].data = (const void *) title_00000001_bin_aligned;
-    contents[1].length = FS_ALIGN(title_00000001_bin_size);
-    ret = CINS_Install((const void *) title_cetk_bin_aligned, FS_ALIGN(title_cetk_bin_size),
-                       (const void *) title_tmd_bin_aligned, FS_ALIGN(title_tmd_bin_size), contents,
+    contents[1].length = title_00000001_bin_size;
+    ret = CINS_Install((const void *) title_cetk_bin_aligned, title_cetk_bin_size,
+                       (const void *) title_tmd_bin_aligned, title_tmd_bin_size, contents,
                        2);
     free(title_cetk_bin_aligned);
     free(title_tmd_bin_aligned);
