@@ -1,0 +1,35 @@
+name: CI-Release
+
+on: [ push, pull_request ]
+
+jobs:
+  build-binary:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Docker Layer Caching
+        uses: jpribyl/action-docker-layer-caching@v0.1.1
+        continue-on-error: true
+        with:
+          key: compat-installer-docker-cache-{hash}
+          restore-keys: |
+            compat-installer-docker-cache-
+      - name: Build artifacts
+        run: |
+          docker build . --file Dockerfile --tag builder
+          docker run --rm -v ${PWD}:/project builder make -j$(nproc) release
+      - name: Upload HBL version
+        uses: actions/upload-artifact@v3
+        with:
+          name: compat_installer-HBL.zip
+          path: compat_installer-HBL.zip
+          if-no-files-found: warn
+      - name: Upload Aroma version
+        uses: actions/upload-artifact@v3
+        with:
+          name: compat_installer-Aroma.zip
+          path: compat_installer-Aroma.zip
+          if-no-files-found: warn

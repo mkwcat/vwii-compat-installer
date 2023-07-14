@@ -16,42 +16,36 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef _CINS_INSTALLER_H
-#define _CINS_INSTALLER_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <gctypes.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 
 typedef struct
 {
-    const void* data;
+    const void *data;
     size_t length;
 } CINS_Content;
 
-#define CINS_TITLEID 0x000100014F484243
-#define CINS_GROUPID 0x5453
+#define CINS_TITLEID       0x000100014F484243
+#define CINS_GROUPID       0x5453
 /* IOS58 */
-#define CINS_SYSVERSION 0x000000010000003A
+#define CINS_SYSVERSION    0x000000010000003A
 #define CINS_TITLE_VERSION 0x0000
 
-extern s32 CINS_iosuhaxFd;
-extern s32 CINS_fsaFd;
-extern s32 CINS_logLine;
+extern int32_t CINS_iosuhaxFd;
+extern int32_t CINS_fsaFd;
+extern int32_t CINS_logLine;
 
-s32 CINS_Install(
-    const void* ticket, u32 ticket_size,
-    const void* tmd, u32 tmd_size,
-    CINS_Content* contents, u16 numContents
-);
-s32 CINS_Uninstall();
+int32_t CINS_Install(const void *ticket, uint32_t ticket_size, const void *tmd,
+                     uint32_t tmd_size, CINS_Content *contents,
+                     uint16_t numContents);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif // _CINS_INSTALLER_H
